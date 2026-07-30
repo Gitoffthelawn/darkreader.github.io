@@ -615,7 +615,7 @@ export const isEdge = navigator.userAgent.includes('Edg');
 // export const isPCountry = (['US', 'GB', 'CA', 'AU'].includes(country) || timeZone === 'UTC') && !isFirefox;
 export const isPCountry = false;
 
-export const isEUCountry = [
+const euCountries = [
     'AT',
     'BE',
     'BG',
@@ -643,7 +643,7 @@ export const isEUCountry = [
     'SE',
     'SI',
     'SK',
-].includes(country);
+];
 
 const stripeCountries = [
     'US',
@@ -665,8 +665,89 @@ const stripeCountries = [
     'ZA',
 ];
 
-export const isStripeCountry = stripeCountries.includes(country);
-export const isPaddleCountry = !isStripeCountry;
+const paddleUSStates = [
+    'GA',
+    'VA',
+    'OH',
+    'NJ',
+    'MD',
+    'MN',
+    'NV',
+    'KY',
+];
+
+const paddleCAStates = [
+    'SK',
+    'MB',
+];
+
+export let taxCountry = '';
+export let taxState = '';
+
+/** @type {Array<(country: string, state: string) => void>} */
+const locationChangeListeners = [];
+
+/** @type {(callback: (country: string, state: string) => void) => void} */
+export function onLocationChange(listener) {
+    locationChangeListeners.push(listener);
+}
+
+(async () => {
+    try {
+        const r = await fetch('https://geo.darkreader.app/tax-location');
+        taxCountry = (await r.text()).trim().toUpperCase();
+        if (!taxCountry) {
+            return;
+        }
+        if (taxCountry === 'US') {
+            const rs = await fetch('https://geo.darkreader.app/tax-location/us');
+            taxState = await rs.text();
+        } else if (taxCountry === 'CA') {
+            const rs = await fetch('https://geo.darkreader.app/tax-location/ca');
+            taxState = await rs.text();
+        }
+        locationChangeListeners.forEach((listener) => listener(taxCountry || country, taxState));
+    } catch (err) {
+    }
+})();
+
+export function isEUCountry() {
+    return euCountries.includes(taxCountry || country);
+}
+
+export function isStripeCountry() {
+    if (taxCountry === 'US' && taxState) {
+        return !paddleUSStates.includes(taxState);
+    }
+    if (taxCountry === 'CA' && taxState) {
+        return !paddleCAStates.includes(taxState);
+    }
+    return stripeCountries.includes(taxCountry || country);
+}
+
+export function isPaddleCountry() {
+    return !isStripeCountry();
+}
+
+/** @type {Record<string, string>} */
+const localCurrencies = {
+    GB: 'GBP',
+    JP: 'JPY',
+    CA: 'CAD',
+    AU: 'AUD',
+    CN: 'CNY',
+};
+
+export function currency() {
+    const c = taxCountry || country;
+    if (localCurrencies.hasOwnProperty(c)) {
+        return localCurrencies[c];
+    }
+    if (isEUCountry()) {
+        return 'EUR';
+    }
+    return 'USD';
+}
 
 export const offer = (() => {
     return null;

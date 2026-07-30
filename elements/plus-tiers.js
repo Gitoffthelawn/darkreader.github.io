@@ -1,6 +1,6 @@
 // @ts-check
 
-import {country, isEUCountry, isPaddleCountry, isStripeCountry, offer} from './locales.js';
+import {currency, isPaddleCountry, isStripeCountry, offer, onLocationChange} from './locales.js';
 import {initPaddle} from './paddle.js';
 import {clicker} from './stats.js';
 import {
@@ -89,7 +89,7 @@ const Prices = {
     },
 };
 
-const DEFAULT_CURRENCY = country === 'GB' ? 'GBP' : country === 'JP' ? 'JPY' : country === 'CA' ? 'CAD' : country === 'AU' ? 'AUD' : country === 'CN' ? 'CNY' : isEUCountry ? 'EUR' : 'USD';
+const DEFAULT_CURRENCY = currency();
 const DEFAULT_PRICE_REGULAR = Prices.REGULAR[DEFAULT_CURRENCY];
 const DEFAULT_PRICE_DISCOUNT = Prices.DISCOUNT[DEFAULT_CURRENCY];
 const DEFAULT_PRICE_PLUS = Prices.PLUS[DEFAULT_CURRENCY];
@@ -172,7 +172,7 @@ const htmlText = `
                 <span class="button-link__text">Pay with <span class="button-link__text--paypal">PayPal</span></span>
             </a>
             -->
-            <a class="button-link button-link--card ${isStripeCountry ? '' : 'button-link--inactive '}js-link-stripe" href="${DEFAULT_LINK_STRIPE}" target="_blank" rel="noopener" data-s="d-plus-stripe">
+            <a class="button-link button-link--card ${isStripeCountry() ? '' : 'button-link--inactive '}js-link-stripe" href="${DEFAULT_LINK_STRIPE}" target="_blank" rel="noopener" data-s="d-plus-stripe">
                 <!--
                 <i class="button-link__card-icon js-card-icon"></i>
                 <span class="button-link__text" data-text="card">Debit or Credit Card</span>
@@ -187,7 +187,7 @@ const htmlText = `
                 <span class="button-link__text" data-text="more">More options</span>
             </a>
             -->
-            <a class="button-link button-link--paddle  ${isPaddleCountry ? '' : 'button-link--inactive '}js-link-paddle" href="#pay" data-s="d-plus-paddle">
+            <a class="button-link button-link--paddle  ${isPaddleCountry() ? '' : 'button-link--inactive '}js-link-paddle" href="#pay" data-s="d-plus-paddle">
                 <span class="button-link__text">
                     <span data-text="pay">Pay</span>
                     <span class="${offer ? 'js-price-discount' : 'js-price-regular'}">${offer ? DEFAULT_PRICE_DISCOUNT : DEFAULT_PRICE_PLUS}</span>
@@ -646,6 +646,16 @@ class PlusTiersElement extends HTMLElement {
         shadowRoot.querySelector('.currencies')?.addEventListener('change', update);
 
         update();
+
+        onLocationChange(() => {
+            const selected = /** @type {HTMLInputElement | null} */(shadowRoot.querySelector(`[name="currency"][value="${currency()}"]`));
+            if (selected) {
+                selected.checked = true;
+            }
+            s('.js-link-stripe').each((node) => node.classList.toggle('button-link--inactive', !isStripeCountry()));
+            s('.js-link-paddle').each((node) => node.classList.toggle('button-link--inactive', !isPaddleCountry()));
+            update();
+        });
 
         if (document.documentElement.lang === 'zh-CN') {
             Object.entries(locales.cn).forEach(([key, text]) => {
